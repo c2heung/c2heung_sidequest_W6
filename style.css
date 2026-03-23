@@ -26,6 +26,7 @@ body {
 .game-wrap {
   text-align: center;
   padding: 1rem;
+  max-width: 980px;
 }
 
 h1 {
@@ -45,4 +46,61 @@ canvas {
   box-shadow: 0 10px 32px rgba(0, 0, 0, 0.5);
   max-width: 95vw;
   height: auto;
+}
+
+.debug-panel {
+  margin: 1rem auto 0;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  background: rgba(10, 16, 34, 0.85);
+  max-width: 95vw;
+}
+
+.debug-panel h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+}
+
+.debug-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.55rem 1rem;
+}
+
+.debug-grid select,
+.debug-grid input[type="checkbox"],
+.debug-actions button {
+  accent-color: #80e7ff;
+}
+
+.debug-grid select {
+  min-width: 150px;
+  background: #121a33;
+  color: #ecf2ff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  padding: 0.35rem 0.5rem;
+}
+
+.debug-actions {
+  margin-top: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.debug-actions button {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 9px;
+  padding: 0.45rem 0.8rem;
+  color: #ecf2ff;
+  background: #182243;
+  cursor: pointer;
+}
+
+.debug-actions button:hover {
+  filter: brightness(1.15);
 }

@@ -2,7 +2,16 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
 const WALL = 14;
-const BALL_SPEED = 6;
+const BALL_SPEED_PRESETS = {
+  slow: 4,
+  regular: 6,
+  fast: 8,
+};
+const PLATFORM_SIZE_PRESETS = {
+  small: 120,
+  regular: 160,
+  large: 220,
+};
 const WALL_COLORS = {
   top: "#ff5d8f",
   left: "#ffd166",
@@ -17,7 +26,15 @@ const keys = {
 
 const state = {
   phase: "waiting", // waiting | running | gameover
+  paused: false,
   score: 0,
+};
+
+const settings = {
+  speedPreset: "regular",
+  musicOn: true,
+  soundOn: true,
+  platformSize: "regular",
 };
 
 const platform = {
@@ -49,13 +66,23 @@ const NOTE_FREQUENCIES = [
   261.63, 293.66, 329.63, 349.23, 392.0, 440.0, 493.88, 523.25,
 ];
 const STAR_AUDIO_CLIP_MS = 2000;
-const starCollectSound = new Audio("star.mp3");
+const starCollectSound = new Audio("Audio/star.mp3");
 starCollectSound.preload = "auto";
-const failSound = new Audio("fail.mp3");
+const failSound = new Audio("Audio/fail.mp3");
 failSound.preload = "auto";
+let lastNonPausedPhase = "waiting";
+
+const ballSpeedSelect = document.getElementById("ballSpeedSelect");
+const platformSizeSelect = document.getElementById("platformSizeSelect");
+const musicToggle = document.getElementById("musicToggle");
+const soundToggle = document.getElementById("soundToggle");
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
+}
+
+function getBallSpeed() {
+  return BALL_SPEED_PRESETS[settings.speedPreset] || BALL_SPEED_PRESETS.regular;
 }
 
 function getAudioContext() {
@@ -68,6 +95,8 @@ function getAudioContext() {
 }
 
 function playRandomWallNote() {
+  if (!settings.musicOn) return;
+
   const ctxAudio = getAudioContext();
   if (!ctxAudio) return;
 
@@ -97,6 +126,8 @@ function playRandomWallNote() {
 }
 
 function playStarCollectSound() {
+  if (!settings.soundOn) return;
+
   const clip = starCollectSound.cloneNode();
   clip.currentTime = 0;
 
@@ -111,6 +142,8 @@ function playStarCollectSound() {
 }
 
 function playFailSound() {
+  if (!settings.soundOn) return;
+
   const clip = failSound.cloneNode();
   clip.currentTime = 0;
   clip.play().catch(() => {
@@ -119,21 +152,88 @@ function playFailSound() {
 }
 
 function keepBallSpeed() {
+  const speed = getBallSpeed();
   const magnitude = Math.hypot(ball.vx, ball.vy) || 1;
-  ball.vx = (ball.vx / magnitude) * BALL_SPEED;
-  ball.vy = (ball.vy / magnitude) * BALL_SPEED;
+  ball.vx = (ball.vx / magnitude) * speed;
+  ball.vy = (ball.vy / magnitude) * speed;
+}
+
+function setPlatformSize(size) {
+  if (!PLATFORM_SIZE_PRESETS[size]) return;
+
+  const oldWidth = platform.width;
+  settings.platformSize = size;
+  platform.width = PLATFORM_SIZE_PRESETS[size];
+  platform.x += (oldWidth - platform.width) / 2;
+  platform.x = clamp(platform.x, WALL, canvas.width - WALL - platform.width);
+
+  if (state.phase !== "running") {
+    ball.x = platform.x + platform.width / 2;
+    ball.y = platform.y - ball.radius - 2;
+  }
+}
+
+function setBallSpeedPreset(preset) {
+  if (!BALL_SPEED_PRESETS[preset]) return;
+
+  settings.speedPreset = preset;
+  if (state.phase === "running") {
+    keepBallSpeed();
+  }
+}
+
+function togglePause() {
+  if (!state.paused) {
+    if (state.phase !== "running") return;
+    state.paused = true;
+    lastNonPausedPhase = state.phase;
+  } else {
+    state.paused = false;
+    state.phase = lastNonPausedPhase;
+  }
+}
+
+function initDebugControls() {
+  if (ballSpeedSelect) {
+    ballSpeedSelect.value = settings.speedPreset;
+    ballSpeedSelect.addEventListener("change", (event) => {
+      setBallSpeedPreset(event.target.value);
+    });
+  }
+
+  if (platformSizeSelect) {
+    platformSizeSelect.value = settings.platformSize;
+    platformSizeSelect.addEventListener("change", (event) => {
+      setPlatformSize(event.target.value);
+    });
+  }
+
+  if (musicToggle) {
+    musicToggle.checked = settings.musicOn;
+    musicToggle.addEventListener("change", (event) => {
+      settings.musicOn = event.target.checked;
+    });
+  }
+
+  if (soundToggle) {
+    soundToggle.checked = settings.soundOn;
+    soundToggle.addEventListener("change", (event) => {
+      settings.soundOn = event.target.checked;
+    });
+  }
 }
 
 function resetRound() {
   state.score = 0;
   state.phase = "waiting";
+  state.paused = false;
 
   platform.x = canvas.width / 2 - platform.width / 2;
   platform.vx = 0;
 
   ball.x = platform.x + platform.width / 2;
   ball.y = platform.y - ball.radius - 2;
-  ball.vx = (Math.random() < 0.5 ? -1 : 1) * BALL_SPEED * 0.45;
+  ball.vx = (Math.random() < 0.5 ? -1 : 1) * getBallSpeed() * 0.45;
   ball.vy = 0;
   ball.color = "#80e7ff";
 
@@ -148,11 +248,13 @@ function startGame() {
       resetRound();
     }
     state.phase = "running";
+    state.paused = false;
+    const speed = getBallSpeed();
     if (Math.abs(ball.vx) < 1) {
-      ball.vx = (Math.random() < 0.5 ? -1 : 1) * BALL_SPEED * 0.45;
+      ball.vx = (Math.random() < 0.5 ? -1 : 1) * speed * 0.45;
     }
-    ball.vx = clamp(ball.vx, -BALL_SPEED * 0.75, BALL_SPEED * 0.75);
-    ball.vy = Math.sqrt(BALL_SPEED * BALL_SPEED - ball.vx * ball.vx);
+    ball.vx = clamp(ball.vx, -speed * 0.75, speed * 0.75);
+    ball.vy = Math.sqrt(speed * speed - ball.vx * ball.vx);
   }
 }
 
@@ -164,6 +266,8 @@ function spawnStar() {
 }
 
 function updatePlatform() {
+  if (state.paused) return;
+
   const prevX = platform.x;
 
   if (keys.left) platform.x -= platform.speed;
@@ -185,13 +289,14 @@ function applyStarAssist() {
   // Only assist when the star is generally above the ball.
   if (dy >= 0) return;
 
+  const speed = getBallSpeed();
   const distance = Math.hypot(dx, dy) || 1;
-  const desiredVx = (dx / distance) * BALL_SPEED;
+  const desiredVx = (dx / distance) * speed;
 
   const assistStrength = 0.4;
   ball.vx = ball.vx * (1 - assistStrength) + desiredVx * assistStrength;
-  ball.vx = clamp(ball.vx, -BALL_SPEED * 0.97, BALL_SPEED * 0.97);
-  ball.vy = -Math.sqrt(BALL_SPEED * BALL_SPEED - ball.vx * ball.vx);
+  ball.vx = clamp(ball.vx, -speed * 0.97, speed * 0.97);
+  ball.vy = -Math.sqrt(speed * speed - ball.vx * ball.vx);
 }
 
 function handleWallBounce() {
@@ -232,6 +337,7 @@ function handlePlatformBounce() {
 
   if (ball.vy > 0 && withinX && touchingTop) {
     ball.y = platform.y - ball.radius;
+    const speed = getBallSpeed();
 
     const offset =
       (ball.x - (platform.x + platform.width / 2)) / (platform.width / 2);
@@ -239,11 +345,11 @@ function handlePlatformBounce() {
     const platformPush = clamp(platform.vx / platform.speed, -1, 1) * 0.55;
 
     ball.vx = clamp(
-      (curvedOffset * 1.1 + platformPush) * BALL_SPEED,
-      -BALL_SPEED * 0.97,
-      BALL_SPEED * 0.97,
+      (curvedOffset * 1.1 + platformPush) * speed,
+      -speed * 0.97,
+      speed * 0.97,
     );
-    ball.vy = -Math.sqrt(BALL_SPEED * BALL_SPEED - ball.vx * ball.vx);
+    ball.vy = -Math.sqrt(speed * speed - ball.vx * ball.vx);
 
     applyStarAssist();
     keepBallSpeed();
@@ -263,7 +369,7 @@ function handleStarCollection() {
 }
 
 function updateBall() {
-  if (state.phase !== "running") return;
+  if (state.phase !== "running" || state.paused) return;
 
   ball.x += ball.vx;
   ball.y += ball.vy;
@@ -356,6 +462,13 @@ function drawHUD() {
       canvas.height / 2 + 48,
     );
   }
+
+  if (state.paused) {
+    ctx.font = "bold 34px Inter, Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#fff2a6";
+    ctx.fillText("Paused", canvas.width / 2, canvas.height / 2);
+  }
 }
 
 function draw() {
@@ -384,6 +497,10 @@ window.addEventListener("keydown", (event) => {
   if (key === "n") {
     startGame();
   }
+
+  if (key === "p") {
+    togglePause();
+  }
 });
 
 window.addEventListener("keyup", (event) => {
@@ -394,4 +511,5 @@ window.addEventListener("keyup", (event) => {
 });
 
 resetRound();
+initDebugControls();
 gameLoop();

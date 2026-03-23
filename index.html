@@ -11,6 +11,7 @@
       <h1>Star Bounce</h1>
       <p class="hint">
         Move platform: ←/→ or W/D &nbsp;•&nbsp; Press N to start/restart
+        &nbsp;•&nbsp; Press P to pause
       </p>
       <canvas
         id="gameCanvas"
@@ -18,6 +19,32 @@
         height="560"
         aria-label="Star Bounce game"
       ></canvas>
+
+      <section class="debug-panel" aria-label="Debug controls">
+        <h2>Debug Menu</h2>
+
+        <div class="debug-grid">
+          <label for="ballSpeedSelect">Ball speed</label>
+          <select id="ballSpeedSelect">
+            <option value="slow">Slow</option>
+            <option value="regular" selected>Regular</option>
+            <option value="fast">Fast</option>
+          </select>
+
+          <label for="platformSizeSelect">Platform size</label>
+          <select id="platformSizeSelect">
+            <option value="small">Small</option>
+            <option value="regular" selected>Regular</option>
+            <option value="large">Large</option>
+          </select>
+
+          <label for="musicToggle">Music</label>
+          <input id="musicToggle" type="checkbox" checked />
+
+          <label for="soundToggle">Sound</label>
+          <input id="soundToggle" type="checkbox" checked />
+        </div>
+      </section>
     </main>
 
     <script src="game.js"></script>
